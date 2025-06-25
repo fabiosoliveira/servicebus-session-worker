@@ -6,36 +6,22 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
+	"github.com/fabiosoliveira/servicebus-session-worker/internal/envs"
 )
 
 func main() {
-	connectionString := os.Getenv("SERVICEBUS_CONNECTION_STRING")
-	queueName := os.Getenv("SERVICEBUS_QUEUE_NAME")
-	workerCount := os.Getenv("WORKER_COUNT")
 
-	if connectionString == "" {
-		log.Fatal("A variável de ambiente SERVICEBUS_CONNECTION_STRING não foi definida.")
-	}
-	if queueName == "" {
-		log.Fatal("A variável de ambiente SERVICEBUS_QUEUE_NAME não foi definida.")
-	}
-	if workerCount == "" {
-		workerCount = "100"
-	}
-
-	client, err := azservicebus.NewClientFromConnectionString(connectionString, nil)
+	client, err := azservicebus.NewClientFromConnectionString(envs.ConnectionString, nil)
 	if err != nil {
 		log.Fatalf("Erro ao criar o client: %v", err)
 	}
 	defer client.Close(context.Background())
 
-	maxConcurrentSessions := stringToInt(workerCount)
-	sem := make(chan struct{}, maxConcurrentSessions)
+	sem := make(chan struct{}, envs.WorkerCount)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -57,7 +43,7 @@ func main() {
 		default:
 			sem <- struct{}{}
 
-			sessionReceiver, err := client.AcceptNextSessionForQueue(ctx, queueName, nil)
+			sessionReceiver, err := client.AcceptNextSessionForQueue(ctx, envs.QueueName, nil)
 			if err != nil {
 				var sbErr *azservicebus.Error
 				if errors.As(err, &sbErr) && sbErr.Code == azservicebus.CodeTimeout {
@@ -127,12 +113,4 @@ func main() {
 func processMessageFromSession(ctx context.Context, receiver *azservicebus.SessionReceiver, msg *azservicebus.ReceivedMessage) error {
 	log.Printf("Mensagem recebida da sessão %s, ID %s\n", *msg.SessionID, msg.MessageID)
 	return receiver.CompleteMessage(ctx, msg, nil)
-}
-
-func stringToInt(workerCount string) int {
-	i, err := strconv.Atoi(workerCount)
-	if err != nil {
-		log.Fatalf("Erro ao converter WORKER_COUNT para int: %v", err)
-	}
-	return i
 }

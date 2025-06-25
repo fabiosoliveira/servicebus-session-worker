@@ -4,34 +4,21 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
+	"github.com/fabiosoliveira/servicebus-session-worker/internal/envs"
 )
 
 func main() {
-	connectionString := os.Getenv("SERVICEBUS_CONNECTION_STRING")
-	queueName := os.Getenv("SERVICEBUS_QUEUE_NAME")
-	workerCount := os.Getenv("WORKER_COUNT")
 
-	if connectionString == "" {
-		log.Fatal("A variável de ambiente SERVICEBUS_CONNECTION_STRING não foi definida.")
-	}
-	if queueName == "" {
-		log.Fatal("A variável de ambiente SERVICEBUS_QUEUE_NAME não foi definida.")
-	}
-	if workerCount == "" {
-		workerCount = "100"
-	}
-
-	client, err := azservicebus.NewClientFromConnectionString(connectionString, nil)
+	client, err := azservicebus.NewClientFromConnectionString(envs.ConnectionString, nil)
 	if err != nil {
 		log.Fatalf("Erro ao criar o client: %v", err)
 	}
 	defer client.Close(context.Background())
 
-	sender, err := client.NewSender(queueName, nil)
+	sender, err := client.NewSender(envs.QueueName, nil)
 	if err != nil {
 		log.Fatalf("Erro ao criar sender: %v", err)
 	}
