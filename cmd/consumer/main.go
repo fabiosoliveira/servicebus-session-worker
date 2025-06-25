@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 )
@@ -31,4 +32,19 @@ func main() {
 		log.Fatalf("Erro ao criar o client: %v", err)
 	}
 	defer client.Close(context.Background())
+
+	// Controla o número máximo de sessões/goroutines em paralelo
+	maxConcurrentSessions := stringToInt(workerCount)
+	sem := make(chan struct{}, maxConcurrentSessions)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+}
+
+func stringToInt(workerCount string) int {
+	i, err := strconv.Atoi(workerCount)
+	if err != nil {
+		log.Fatalf("Erro ao converter WORKER_COUNT para int: %v", err)
+	}
+	return i
 }
